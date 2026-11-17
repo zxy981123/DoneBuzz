@@ -10,6 +10,9 @@ struct HistoryView: View {
     )
     private var done: [Todo]
 
+    /// Dates are always shown in Chinese, whatever the device language.
+    private static let chinese = Locale(identifier: "zh-Hans")
+
     /// Finished items grouped by calendar day, newest day first.
     private var days: [(day: Date, items: [Todo])] {
         let calendar = Calendar.current
@@ -26,9 +29,9 @@ struct HistoryView: View {
             Group {
                 if done.isEmpty {
                     ContentUnavailableView(
-                        "No finished items yet",
+                        "还没有已完成的事项",
                         systemImage: "checkmark.seal",
-                        description: Text("Items you complete will be kept here.")
+                        description: Text("完成的事项会保存在这里。")
                     )
                 } else {
                     List {
@@ -38,19 +41,23 @@ struct HistoryView: View {
                                     row(for: todo)
                                 }
                             } header: {
-                                HStack {
+                                HStack(alignment: .firstTextBaseline) {
                                     Text(title(for: group.day))
                                     Spacer()
-                                    Text("\(group.items.count) done")
+                                    Text(summary(for: group.items))
                                 }
                                 .font(Theme.label)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                             }
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
+                    .background(Theme.background)
                 }
             }
-            .navigationTitle("Done")
+            .navigationTitle("已完成")
         }
     }
 
@@ -60,34 +67,39 @@ struct HistoryView: View {
                 .font(.title3)
                 .foregroundStyle(Theme.success)
 
-            VStack(alignment: .leading, spacing: 4) {
+            // Title gets the full width; the time details sit together on the line below.
+            VStack(alignment: .leading, spacing: 8) {
                 Text(todo.title)
                     .font(Theme.historyTitle)
-                if let completedAt = todo.completedAt {
-                    Text(completedAt.formatted(date: .omitted, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .tracking(Theme.titleTracking)
+                    .lineSpacing(Theme.titleLineSpacing)
+                HStack(spacing: 10) {
+                    if let completedAt = todo.completedAt {
+                        Text(completedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Self.chinese)))
+                            .font(Theme.hint)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let minutes = todo.durationMinutes {
+                        DurationBadge(minutes: minutes)
+                    }
                 }
             }
 
             Spacer(minLength: 0)
-
-            if let minutes = todo.durationMinutes {
-                DurationBadge(minutes: minutes)
-            }
         }
+        .padding(.vertical, 6)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 modelContext.delete(todo)
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("删除", systemImage: "trash")
             }
         }
         .swipeActions(edge: .leading) {
             Button {
                 withAnimation { todo.completedAt = nil }
             } label: {
-                Label("Not done", systemImage: "arrow.uturn.backward")
+                Label("撤销完成", systemImage: "arrow.uturn.backward")
             }
             .tint(Theme.accent)
         }
@@ -95,8 +107,20 @@ struct HistoryView: View {
 
     private func title(for day: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return "Today" }
-        if calendar.isDateInYesterday(day) { return "Yesterday" }
-        return day.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        let date = day.formatted(.dateTime.month().day().weekday(.abbreviated).locale(Self.chinese))
+        let today = calendar.startOfDay(for: .now)
+        switch calendar.dateComponents([.day], from: day, to: today).day {
+        case 0: return "今天 · \(date)"
+        case 1: return "昨天 · \(date)"
+        case 2: return "前天 · \(date)"
+        default: return date
+        }
+    }
+
+    /// "3 项 · 共 50 分钟" — the time is the sum of the estimates on that day's items.
+    private func summary(for items: [Todo]) -> String {
+        let count = "\(items.count) 项"
+        let minutes = items.compactMap(\.durationMinutes).reduce(0, +)
+        return minutes == 0 ? count : "\(count) · 共 \(DurationOption.label(for: minutes))"
     }
 }

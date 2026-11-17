@@ -4,11 +4,12 @@ struct TodoRow: View {
     let todo: Todo
     /// Called when the card (not the circle) is tapped.
     let onEdit: () -> Void
-    /// Called after the celebration animation has played.
-    let onComplete: () -> Void
+    /// Called when the circle is tapped: completes an active item, or un-completes a finished one.
+    let onToggle: () -> Void
 
-    @State private var isDone = false
     @State private var shake: CGFloat = 0
+
+    private var isDone: Bool { todo.completedAt != nil }
 
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
@@ -16,7 +17,7 @@ struct TodoRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            Button(action: complete) {
+            Button(action: toggle) {
                 ZStack {
                     Circle()
                         .strokeBorder(isDone ? Theme.success : Theme.accent, lineWidth: 3.5)
@@ -29,18 +30,18 @@ struct TodoRow: View {
                     }
                 }
                 .frame(width: 42, height: 42)
-                .scaleEffect(isDone ? 1.15 : 1)
                 .contentShape(Rectangle().inset(by: -8))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Mark as done")
+            .accessibilityLabel(isDone ? "标记为未完成" : "标记为完成")
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text(todo.title)
                     .font(Theme.itemTitle)
-                    .lineSpacing(3)
-                    .strikethrough(isDone, color: .secondary)
-                    .foregroundStyle(isDone ? .secondary : .primary)
+                    .tracking(Theme.titleTracking)
+                    .lineSpacing(Theme.titleLineSpacing)
+                    // No strike-through: a crossed-out line is hard to re-read. The green card says "done".
+                    .foregroundStyle(isDone ? Theme.success : .primary)
                     .fixedSize(horizontal: false, vertical: true)
                 if let minutes = todo.durationMinutes {
                     DurationBadge(minutes: minutes)
@@ -50,10 +51,17 @@ struct TodoRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(18)
+        .padding(20)
+        // The green wash sits behind the content; on top it would swallow taps meant for the circle.
+        .background(Theme.success.opacity(isDone ? 0.13 : 0), in: cardShape)
         .background(Theme.card, in: cardShape)
-        .overlay(cardShape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 1.5))
-        .shadow(color: .black.opacity(0.07), radius: 5, y: 3)
+        .overlay(
+            cardShape.strokeBorder(
+                isDone ? Theme.success.opacity(0.55) : Theme.accent.opacity(0.18),
+                lineWidth: 2
+            )
+        )
+        .shadow(color: Theme.accent.opacity(isDone ? 0 : 0.10), radius: 6, y: 3)
         .contentShape(cardShape)
         .onTapGesture {
             if !isDone { onEdit() }
@@ -61,17 +69,18 @@ struct TodoRow: View {
         .modifier(ShakeEffect(animatableData: shake))
     }
 
-    private func complete() {
-        guard !isDone else { return }
-        FeedbackService.shared.taskCompleted()
+    private func toggle() {
+        if isDone {
+            UISelectionFeedbackGenerator().selectionChanged()
+        } else {
+            FeedbackService.shared.taskCompleted()
+            // One whole unit plays the wiggle once and lands back at rest.
+            withAnimation(.linear(duration: 0.45)) {
+                shake += 1
+            }
+        }
         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-            isDone = true
-        }
-        withAnimation(.linear(duration: 0.45)) {
-            shake = 1
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            onComplete()
+            onToggle()
         }
     }
 }

@@ -4,9 +4,9 @@ struct RootView: View {
     var body: some View {
         TabView {
             TodayView()
-                .tabItem { Label("To do", systemImage: "checklist") }
+                .tabItem { Label("待办", systemImage: "checklist") }
             HistoryView()
-                .tabItem { Label("Done", systemImage: "checkmark.seal.fill") }
+                .tabItem { Label("已完成", systemImage: "checkmark.seal.fill") }
         }
         .tint(Theme.accent)
     }

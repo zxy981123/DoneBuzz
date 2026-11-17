@@ -15,7 +15,7 @@ struct DoneBuzzApp: App {
         .modelContainer(for: Todo.self)
     }
 
-    /// Makes the big screen titles ("To do", "Done") match the chunky rounded type used in the lists.
+    /// Makes the big screen titles ("待办", "已完成") match the chunky rounded type used in the lists.
     private static func useRoundedNavigationTitles() {
         let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .largeTitle)
         guard let rounded = base.withSymbolicTraits(.traitBold)?.withDesign(.rounded) else { return }

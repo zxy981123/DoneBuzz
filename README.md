@@ -1,6 +1,6 @@
 # DoneBuzz
 
-A tiny iOS to-do app: add an item (optionally 5 min / 20 min / 1 hour), tap to complete it with a shake, haptic and chime, and keep a history of everything finished.
+A tiny iOS to-do app: add an item (typed or dictated, optionally with a time estimate from 5 min to 1 hour), tap to complete it with a shake, haptic and chime, and keep a history of everything finished.
 
 SwiftUI + SwiftData, iOS 17+, no dependencies, local storage only.
 

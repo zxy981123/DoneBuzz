@@ -3,15 +3,42 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(
-        filter: #Predicate<Todo> { $0.completedAt == nil },
-        sort: \Todo.createdAt,
-        order: .reverse
-    )
-    private var todos: [Todo]
+    @Environment(\.scenePhase) private var scenePhase
+    @Query private var allTodos: [Todo]
 
     @State private var showingAdd = false
     @State private var editing: Todo?
+    /// Refreshed whenever the app comes forward, so yesterday's finished items drop off.
+    @State private var now = Date()
+    /// Bumped each time an item is completed; every bump drops one burst of confetti.
+    @State private var confettiBursts = 0
+
+    init() {
+        // Only ask the database for what this screen can show (open items, plus anything
+        // finished since midnight) so years of history are never loaded here.
+        let dayStart = Calendar.current.startOfDay(for: .now)
+        let longAgo = Date.distantPast
+        _allTodos = Query(
+            filter: #Predicate<Todo> { todo in
+                todo.completedAt == nil || (todo.completedAt ?? longAgo) >= dayStart
+            },
+            sort: \Todo.createdAt,
+            order: .reverse
+        )
+    }
+
+    /// Everything still open, plus whatever was finished today. Finished items keep their place
+    /// (green) for the rest of the day so the day's progress stays visible.
+    private var todos: [Todo] {
+        allTodos.filter { todo in
+            guard let completedAt = todo.completedAt else { return true }
+            return Calendar.current.isDate(completedAt, inSameDayAs: now)
+        }
+    }
+
+    private var doneCount: Int {
+        todos.filter { $0.completedAt != nil }.count
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,7 +53,7 @@ struct TodayView: View {
 
                 addButton
             }
-            .navigationTitle("To do")
+            .navigationTitle("待办")
             .sheet(isPresented: $showingAdd) {
                 TodoEditorSheet { title, minutes in
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -40,26 +67,45 @@ struct TodayView: View {
                     todo.durationMinutes = minutes
                 }
             }
-            .onAppear { FeedbackService.shared.prepare() }
+            .onAppear {
+                now = Date()
+                FeedbackService.shared.prepare()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { now = Date() }
+            }
+        }
+        .overlay {
+            ConfettiView(bursts: confettiBursts)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
         }
     }
 
     private var list: some View {
         List {
+            progressHeader
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 10, trailing: 20))
+
             ForEach(todos) { todo in
                 TodoRow(todo: todo, onEdit: { editing = todo }) {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    if todo.completedAt == nil {
                         todo.completedAt = .now
+                        confettiBursts += 1
+                    } else {
+                        todo.completedAt = nil
                     }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
                         modelContext.delete(todo)
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label("删除", systemImage: "trash")
                     }
                 }
             }
@@ -69,11 +115,32 @@ struct TodayView: View {
         .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 88) }
     }
 
+    private var progressHeader: some View {
+        let left = todos.count - doneCount
+        let text: String
+        if doneCount == 0 {
+            text = "今天还有 \(left) 项要做"
+        } else if left == 0 {
+            text = "今天的 \(doneCount) 项全部完成 🎉"
+        } else {
+            text = "今天已完成 \(doneCount) 项，还剩 \(left) 项"
+        }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text(text)
+                .font(Theme.progress)
+                .tracking(Theme.titleTracking)
+                .foregroundStyle(doneCount == 0 ? Color.primary : Theme.success)
+            ProgressView(value: Double(doneCount), total: Double(max(todos.count, 1)))
+                .tint(Theme.success)
+                .scaleEffect(x: 1, y: 2.2, anchor: .center)
+        }
+    }
+
     private var emptyState: some View {
         ContentUnavailableView(
-            "Nothing to do",
+            "暂无待办",
             systemImage: "sparkles",
-            description: Text("Tap + to add your first item.")
+            description: Text("点击 + 添加第一条待办。")
         )
     }
 
@@ -89,6 +156,6 @@ struct TodayView: View {
                 .shadow(color: Theme.accent.opacity(0.45), radius: 12, y: 6)
         }
         .padding(.bottom, 18)
-        .accessibilityLabel("Add item")
+        .accessibilityLabel("添加待办")
     }
 }
