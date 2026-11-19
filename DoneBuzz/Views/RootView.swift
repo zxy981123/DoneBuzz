@@ -93,6 +93,14 @@ struct RootView: View {
                 enabled: reminderEnabled, minutes: reminderMinutes, strings: strings
             )
         }
+        .onOpenURL { url in
+            // The widget's + opens the add sheet.
+            guard url == WidgetSnapshot.addURL else { return }
+            showingSettings = false
+            showingWhatsNew = false
+            withAnimation { tab = .todo }
+            showingAdd = true
+        }
         .onChange(of: scenePhase) { _, _ in
             // A cancelled touch never reports its end; drop any half-finished tab drag.
             dragX = nil

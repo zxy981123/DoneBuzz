@@ -5,6 +5,7 @@ import WidgetKit
 @main
 struct DoneBuzzWidgetsBundle: WidgetBundle {
     var body: some Widget {
+        TodayWidget()
         FocusLiveActivity()
     }
 }

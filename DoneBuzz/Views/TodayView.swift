@@ -53,6 +53,19 @@ struct TodayView: View {
         }
     }
 
+    /// What the home screen widget should show right now.
+    private var widgetSnapshot: WidgetSnapshot {
+        let completions = recentDone.compactMap(\.completedAt)
+        return WidgetSnapshot(
+            openTitles: todos.filter { $0.completedAt == nil }.map(\.title),
+            done: doneCount,
+            streak: Streak.compute(completionDates: completions, now: now).current,
+            lastActiveDay: completions.max(),
+            isChinese: s.isChinese,
+            now: now
+        )
+    }
+
     private var doneCount: Int {
         todos.filter { $0.completedAt != nil }.count
     }
@@ -91,6 +104,7 @@ struct TodayView: View {
             }
         }
         .onChange(of: todos.count) { _, _ in syncCat() }
+        .onChange(of: widgetSnapshot, initial: true) { _, snapshot in WidgetSync.publish(snapshot) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { now = Date() }
         }
