@@ -20,22 +20,8 @@ final class Todo {
 
 enum DurationOption {
     /// The quick-pick durations offered when adding an item, in minutes.
+    /// Their labels come from `Strings.duration(_:)` so they follow the chosen language.
     static let all: [Int] = [5, 15, 25, 45, 60]
     /// One pomodoro.
     static let pomodoro = 25
-
-    static func label(for minutes: Int) -> String {
-        if minutes < 60 {
-            return "\(minutes) 分钟"
-        }
-        let hours = minutes / 60
-        let rest = minutes % 60
-        let hourText = "\(hours) 小时"
-        return rest == 0 ? hourText : "\(hourText) \(rest) 分钟"
-    }
-
-    /// Label for the quick-pick chips; the pomodoro length gets a tomato.
-    static func chipLabel(for minutes: Int) -> String {
-        minutes == pomodoro ? "🍅 " + label(for: minutes) : label(for: minutes)
-    }
 }

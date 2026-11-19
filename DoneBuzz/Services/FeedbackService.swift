@@ -1,8 +1,9 @@
 import AVFoundation
 import UIKit
 
-/// The "reward" fired when an item is completed: a haptic thump + success buzz and a short chime.
-/// The chime is synthesized in code, so the project needs no audio asset.
+/// The "reward" fired when an item is completed: a haptic thump on tap, a success buzz as the
+/// coin pops, and a short 8-bit "hop + coin" sound.
+/// The sound is synthesized in code, so the project needs no audio asset.
 final class FeedbackService {
     static let shared = FeedbackService()
 
@@ -10,10 +11,12 @@ final class FeedbackService {
     private let notification = UINotificationFeedbackGenerator()
     private var player: AVAudioPlayer?
 
+    private static let sampleRate: Double = 44_100
+
     private init() {
         // .ambient respects the silent switch and does not interrupt music.
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
-        player = try? AVAudioPlayer(data: Self.makeChime(), fileTypeHint: AVFileType.wav.rawValue)
+        player = try? AVAudioPlayer(data: Self.makeHopAndCoin(), fileTypeHint: AVFileType.wav.rawValue)
         player?.prepareToPlay()
     }
 
@@ -25,40 +28,64 @@ final class FeedbackService {
 
     func taskCompleted() {
         impact.impactOccurred()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [notification] in
+        // Lands with the coin, which pops at the top of the cat's hop.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [notification] in
             notification.notificationOccurred(.success)
         }
         player?.currentTime = 0
         player?.play()
     }
 
-    // MARK: - Chime synthesis
+    // MARK: - Sound synthesis
 
-    /// A two-note rising "ding" (A5 -> E6) as 16-bit mono WAV data.
-    private static func makeChime() -> Data {
-        let sampleRate: Double = 44_100
-        let duration: Double = 0.7
+    /// A quick upward "boing" for the hop, then a bright G-C-E-G coin arpeggio, as 16-bit mono WAV data.
+    private static func makeHopAndCoin() -> Data {
+        let duration: Double = 0.85
         let count = Int(sampleRate * duration)
-        let notes: [(freq: Double, start: Double)] = [(880.0, 0.0), (1318.51, 0.09)]
-        let twoPi = 2.0 * Double.pi
+        var mix = [Double](repeating: 0, count: count)
 
-        var samples = [Int16](repeating: 0, count: count)
-        for i in 0..<count {
+        // 1. The hop: a 0.16 s sweep from 300 Hz up to 820 Hz.
+        let hopLength = 0.16
+        var phase: Double = 0
+        for i in 0..<Int(sampleRate * hopLength) {
             let t = Double(i) / sampleRate
-            var value: Double = 0
-            for note in notes where t >= note.start {
-                let local = t - note.start
-                let attack = min(local / 0.005, 1.0)
-                let envelope = attack * exp(-local * 7.0)
-                let fundamental = sin(twoPi * note.freq * local)
-                let overtone = 0.3 * sin(twoPi * note.freq * 2.0 * local)
-                value += envelope * (fundamental + overtone)
-            }
-            let clamped = max(-1.0, min(1.0, value * 0.35))
-            samples[i] = Int16(clamped * Double(Int16.max))
+            let frequency = 300 * pow(820.0 / 300.0, t / hopLength)
+            phase += 2 * Double.pi * frequency / sampleRate
+            let envelope = min(t / 0.004, 1) * (1 - t / hopLength)
+            mix[i] += 0.55 * envelope * softSquare(phase)
         }
 
-        let byteCount = UInt32(count * 2)
+        // 2. The coin: four quick notes starting as the cat reaches the top; the last one rings on.
+        let notes: [(frequency: Double, start: Double, decay: Double)] = [
+            (783.99, 0.20, 18),   // G5
+            (1046.50, 0.26, 18),  // C6
+            (1318.51, 0.32, 18),  // E6
+            (1567.98, 0.38, 6),   // G6
+        ]
+        for note in notes {
+            let first = Int(sampleRate * note.start)
+            for i in first..<count {
+                let local = Double(i - first) / sampleRate
+                let envelope = min(local / 0.003, 1) * exp(-local * note.decay)
+                if local > 0.05 && envelope < 0.0005 { break }
+                mix[i] += 0.5 * envelope * softSquare(2 * Double.pi * note.frequency * local)
+            }
+        }
+
+        let samples = mix.map { value -> Int16 in
+            let clamped = max(-1.0, min(1.0, value * 0.6))
+            return Int16(clamped * Double(Int16.max))
+        }
+        return wav(samples)
+    }
+
+    /// A square wave built from its first three odd harmonics: chiptune-flavoured but not harsh.
+    private static func softSquare(_ phase: Double) -> Double {
+        sin(phase) + sin(3 * phase) / 3 + sin(5 * phase) / 5
+    }
+
+    private static func wav(_ samples: [Int16]) -> Data {
+        let byteCount = UInt32(samples.count * 2)
         var data = Data()
         data.append(contentsOf: Array("RIFF".utf8))
         appendLE(UInt32(36) + byteCount, to: &data)

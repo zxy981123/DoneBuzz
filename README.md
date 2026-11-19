@@ -1,6 +1,6 @@
 # DoneBuzz
 
-A tiny iOS to-do app: add an item (typed or dictated, optionally with a time estimate from 5 min to 1 hour), tap to complete it with a shake, haptic and chime, and keep a history of everything finished.
+A tiny iOS to-do app with a pixel side-scroller look: add an item (typed or dictated, optionally with a time estimate from 5 min to 1 hour), tap the button on the right to complete it, and a pixel cat hops to knock out a coin (with a haptic and an 8-bit sound) while it walks toward today's finish flag. Finished items stay in today's list until midnight and can be un-ticked; everything finished is kept in history. Chinese and English UI, switchable in Settings.
 
 SwiftUI + SwiftData, iOS 17+, no dependencies, local storage only.
 
@@ -21,5 +21,9 @@ Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, SwiftData off)
 ## Layout
 
 - `DoneBuzz/Models/Todo.swift` — the data model and duration options
-- `DoneBuzz/Services/FeedbackService.swift` — haptics and the synthesized chime
-- `DoneBuzz/Views/` — To do list, add/edit sheet, Done history
+- `DoneBuzz/Services/FeedbackService.swift` — haptics and the synthesized hop + coin sound
+- `DoneBuzz/Services/Language.swift` — the language setting and every UI string in Chinese and English
+- `DoneBuzz/Services/SpeechInput.swift` — dictation, in the chosen language
+- `DoneBuzz/Views/PixelArt.swift` — the cat, coin and cloud sprites, drawn in code
+- `DoneBuzz/Views/StageView.swift` — the scene with the hopping cat and finish flag
+- `DoneBuzz/Views/` — To do list, add/edit sheet, Done history, Settings, theme

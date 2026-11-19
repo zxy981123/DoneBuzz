@@ -2,18 +2,22 @@ import SwiftData
 import SwiftUI
 
 struct TodayView: View {
+    /// Opens the Settings sheet (owned by RootView).
+    let onSettings: () -> Void
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.strings) private var s
     @Query private var allTodos: [Todo]
 
-    @State private var showingAdd = false
     @State private var editing: Todo?
     /// Refreshed whenever the app comes forward, so yesterday's finished items drop off.
     @State private var now = Date()
-    /// Bumped each time an item is completed; every bump drops one burst of confetti.
-    @State private var confettiBursts = 0
+    /// Bumped each time an item is completed; every bump makes the cat hop for a coin.
+    @State private var hops = 0
 
-    init() {
+    init(onSettings: @escaping () -> Void) {
+        self.onSettings = onSettings
         // Only ask the database for what this screen can show (open items, plus anything
         // finished since midnight) so years of history are never loaded here.
         let dayStart = Calendar.current.startOfDay(for: .now)
@@ -28,7 +32,7 @@ struct TodayView: View {
     }
 
     /// Everything still open, plus whatever was finished today. Finished items keep their place
-    /// (green) for the rest of the day so the day's progress stays visible.
+    /// (gold) for the rest of the day so the day's progress stays visible, and can be un-ticked.
     private var todos: [Todo] {
         allTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return true }
@@ -41,121 +45,106 @@ struct TodayView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
-                Theme.background.ignoresSafeArea()
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 20)
+                // Drawn above the list so the coin can fly over it.
+                .zIndex(1)
 
-                if todos.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
-
-                addButton
-            }
-            .navigationTitle("待办")
-            .sheet(isPresented: $showingAdd) {
-                TodoEditorSheet { title, minutes in
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        modelContext.insert(Todo(title: title, durationMinutes: minutes))
-                    }
-                }
-            }
-            .sheet(item: $editing) { todo in
-                TodoEditorSheet(todo: todo) { title, minutes in
-                    todo.title = title
-                    todo.durationMinutes = minutes
-                }
-            }
-            .onAppear {
-                now = Date()
-                FeedbackService.shared.prepare()
-            }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { now = Date() }
+            if todos.isEmpty {
+                emptyState
+                    .frame(maxHeight: .infinity)
+            } else {
+                list
             }
         }
-        .overlay {
-            ConfettiView(bursts: confettiBursts)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+        .sheet(item: $editing) { todo in
+            TodoEditorSheet(todo: todo) { title, minutes in
+                todo.title = title
+                todo.durationMinutes = minutes
+            }
+            .environment(\.strings, s)
         }
+        .onAppear {
+            now = Date()
+            FeedbackService.shared.prepare()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { now = Date() }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Text(s.todoTab)
+                    .font(Theme.screenTitle)
+                    .foregroundStyle(Theme.ink)
+                Spacer(minLength: 8)
+                CoinCounter(count: doneCount)
+                settingsButton
+            }
+
+            if !todos.isEmpty {
+                Text(s.progress(done: doneCount, left: todos.count - doneCount))
+                    .font(Theme.progress)
+                    .tracking(Theme.titleTracking)
+                    .foregroundStyle(Theme.ink)
+            }
+
+            StageView(done: doneCount, total: todos.count, hops: hops)
+                .padding(.top, 4)
+        }
+        .padding(.top, 8)
+    }
+
+    private var settingsButton: some View {
+        Button(action: onSettings) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(Theme.ink)
+                .frame(width: 44, height: 44)
+                .background(Color.white, in: Circle())
+                .gameOutline(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(s.settings)
     }
 
     private var list: some View {
         List {
-            progressHeader
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 10, trailing: 20))
-
             ForEach(todos) { todo in
                 TodoRow(todo: todo, onEdit: { editing = todo }) {
                     if todo.completedAt == nil {
                         todo.completedAt = .now
-                        confettiBursts += 1
+                        hops += 1
                     } else {
                         todo.completedAt = nil
                     }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 12, trailing: 20))
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
                         modelContext.delete(todo)
                     } label: {
-                        Label("删除", systemImage: "trash")
+                        Label(s.delete, systemImage: "trash")
                     }
                 }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 88) }
-    }
-
-    private var progressHeader: some View {
-        let left = todos.count - doneCount
-        let text: String
-        if doneCount == 0 {
-            text = "今天还有 \(left) 项要做"
-        } else if left == 0 {
-            text = "今天的 \(doneCount) 项全部完成 🎉"
-        } else {
-            text = "今天已完成 \(doneCount) 项，还剩 \(left) 项"
-        }
-        return VStack(alignment: .leading, spacing: 10) {
-            Text(text)
-                .font(Theme.progress)
-                .tracking(Theme.titleTracking)
-                .foregroundStyle(doneCount == 0 ? Color.primary : Theme.success)
-            ProgressView(value: Double(doneCount), total: Double(max(todos.count, 1)))
-                .tint(Theme.success)
-                .scaleEffect(x: 1, y: 2.2, anchor: .center)
-        }
+        .contentMargins(.top, 12, for: .scrollContent)
     }
 
     private var emptyState: some View {
         ContentUnavailableView(
-            "暂无待办",
+            s.emptyTitle,
             systemImage: "sparkles",
-            description: Text("点击 + 添加第一条待办。")
+            description: Text(s.emptyHint)
         )
-    }
-
-    private var addButton: some View {
-        Button {
-            showingAdd = true
-        } label: {
-            Image(systemName: "plus")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 62, height: 62)
-                .background(Theme.accent, in: Circle())
-                .shadow(color: Theme.accent.opacity(0.45), radius: 12, y: 6)
-        }
-        .padding(.bottom, 18)
-        .accessibilityLabel("添加待办")
+        .foregroundStyle(Theme.ink)
     }
 }
