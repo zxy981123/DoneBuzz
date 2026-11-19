@@ -9,12 +9,16 @@ struct TodayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.strings) private var s
     @Query private var allTodos: [Todo]
+    /// Finished items from the past year, only used for the streak.
+    @Query private var recentDone: [Todo]
 
     @State private var editing: Todo?
     /// Refreshed whenever the app comes forward, so yesterday's finished items drop off.
     @State private var now = Date()
     /// Bumped each time an item is completed; every bump makes the cat hop for a coin.
     @State private var hops = 0
+    /// Where the cat is on the road; kept across tab switches and relaunches.
+    @State private var cat = CatProgress.load()
 
     init(onSettings: @escaping () -> Void) {
         self.onSettings = onSettings
@@ -29,6 +33,15 @@ struct TodayView: View {
             sort: \Todo.createdAt,
             order: .reverse
         )
+        let yearAgo = Calendar.current.date(byAdding: .day, value: -400, to: .now) ?? longAgo
+        _recentDone = Query(filter: #Predicate<Todo> { todo in
+            (todo.completedAt ?? longAgo) >= yearAgo
+        })
+    }
+
+    private func syncCat() {
+        cat.update(done: doneCount, total: todos.count, now: now)
+        cat.save()
     }
 
     /// Everything still open, plus whatever was finished today. Finished items keep their place
@@ -68,7 +81,16 @@ struct TodayView: View {
         .onAppear {
             now = Date()
             FeedbackService.shared.prepare()
+            syncCat()
         }
+        .onChange(of: doneCount) { old, new in
+            syncCat()
+            // Ticking off the last open item of the day gets a bigger celebration buzz.
+            if new > old, new == todos.count, new > 0 {
+                FeedbackService.shared.dayCleared()
+            }
+        }
+        .onChange(of: todos.count) { _, _ in syncCat() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { now = Date() }
         }
@@ -92,13 +114,20 @@ struct TodayView: View {
             }
 
             if !todos.isEmpty {
-                Text(s.progress(done: doneCount, left: todos.count - doneCount))
-                    .font(Theme.progress)
-                    .tracking(Theme.titleTracking)
-                    .foregroundStyle(Theme.ink)
+                let streak = Streak.compute(completionDates: recentDone.compactMap(\.completedAt), now: now)
+                HStack(spacing: 10) {
+                    Text(s.progress(done: doneCount, left: todos.count - doneCount))
+                        .font(Theme.progress)
+                        .tracking(Theme.titleTracking)
+                        .foregroundStyle(Theme.ink)
+                    Spacer(minLength: 0)
+                    if streak.current > 0 {
+                        StreakBadge(info: streak)
+                    }
+                }
             }
 
-            StageView(done: doneCount, total: todos.count, hops: hops)
+            StageView(done: doneCount, total: todos.count, position: cat.position, hops: hops)
                 .padding(.top, 4)
         }
         .padding(.top, 8)
@@ -121,8 +150,9 @@ struct TodayView: View {
         ScrollViewReader { proxy in
             listContent
                 // A newly added item lands at the top; bring it into view even if the list was scrolled down.
-                .onChange(of: todos.first?.id) { _, newest in
-                    guard let newest else { return }
+                // Only when the list grew, so deleting an item keeps the list's own removal animation.
+                .onChange(of: todos.count) { old, new in
+                    guard new > old, let newest = todos.first?.id else { return }
                     withAnimation { proxy.scrollTo(newest, anchor: .top) }
                 }
         }
@@ -135,6 +165,7 @@ struct TodayView: View {
                     if todo.completedAt == nil {
                         todo.completedAt = .now
                         hops += 1
+                        FocusTimer.shared.stopIfRunning(for: todo.focusKey)
                     } else {
                         todo.completedAt = nil
                     }
@@ -142,8 +173,9 @@ struct TodayView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 12, trailing: 20))
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
+                        FocusTimer.shared.stopIfRunning(for: todo.focusKey)
                         modelContext.delete(todo)
                     } label: {
                         Label(s.delete, systemImage: "trash")

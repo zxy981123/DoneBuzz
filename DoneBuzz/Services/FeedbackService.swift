@@ -20,17 +20,33 @@ final class FeedbackService {
         player?.prepareToPlay()
     }
 
+    /// The day's last item is done: a longer drum-roll and finish.
+    func dayCleared() {
+        // Starts once the normal completion buzz has finished.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [haptics, notification] in
+            if !haptics.play(.dayCleared) {
+                notification.notificationOccurred(.success)
+            }
+        }
+    }
+
     /// Warms up the Taptic Engine so the first buzz has no delay.
     func prepare() {
+        haptics.prepare()
         impact.prepare()
         notification.prepare()
     }
 
+    private let haptics = HapticPlayer()
+
     func taskCompleted() {
-        impact.impactOccurred()
-        // Lands with the coin, which pops at the top of the cat's hop.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [notification] in
-            notification.notificationOccurred(.success)
+        // A thump on tap, a short buzz, rising taps up to the coin pop, then two soft echoes.
+        if !haptics.play(.taskCompleted) {
+            impact.impactOccurred()
+            // Lands with the coin, which pops at the top of the cat's hop.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [notification] in
+                notification.notificationOccurred(.success)
+            }
         }
         // Dictation switches the audio session to recording; make sure the chime can still play.
         let session = AVAudioSession.sharedInstance()

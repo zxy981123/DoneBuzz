@@ -132,6 +132,124 @@ struct Strings {
         }
     }
 
+    // MARK: Streaks
+
+    func streakDays(_ days: Int) -> String {
+        pick("连续 \(days) 天", days == 1 ? "1-day streak" : "\(days)-day streak")
+    }
+    func bestStreak(_ days: Int) -> String {
+        pick("最长 \(days) 天", "Best \(days)")
+    }
+    var streakRestHint: String { pick("休息一天不会断。", "One rest day won't break it.") }
+    var streakStart: String { pick("今天完成一项，开始你的连续记录。", "Finish one thing today to start a streak.") }
+
+    // MARK: Reminders
+
+    var reminderTitle: String { pick("每日提醒", "Daily reminder") }
+    var reminderTime: String { pick("提醒时间", "Time") }
+    var reminderFootnote: String {
+        pick("每天在这个时间轻轻提醒你挑一件小事。", "A gentle nudge each day to pick one small thing.")
+    }
+    var reminderDenied: String {
+        pick("通知已关闭。请在“设置”中打开通知。", "Notifications are off. Turn them on in the Settings app.")
+    }
+    var openSystemSettings: String { pick("打开设置", "Open Settings") }
+
+    /// Wording for each weekday's notification (1 = Sunday ... 7 = Saturday).
+    func reminderMessage(forWeekday weekday: Int) -> String {
+        let zh = [
+            "新的一周，先挑一件最小的事开始吧。",
+            "只做一件小事就好，小猫在等你。",
+            "5 分钟也算数，现在就开始吧。",
+            "今天想先完成哪一件？",
+            "挑一件小事，让小猫拿到今天的金币。",
+            "快到周末了，再完成一件小事吧。",
+            "周末也可以很轻松，只做一件就好。",
+        ]
+        let en = [
+            "A new week. Start with the smallest thing.",
+            "Just one small thing. The cat is waiting.",
+            "Five minutes counts. Start now.",
+            "Which one do you want to finish first today?",
+            "Pick one small thing and earn today's coin.",
+            "Almost the weekend. One more small thing?",
+            "Weekends can be easy. Just do one.",
+        ]
+        let index = min(max(weekday, 1), 7) - 1
+        return pick(zh[index], en[index])
+    }
+
+    // MARK: Focus timer
+
+    var focusStart: String { pick("开始", "Start") }
+    var focusStop: String { pick("停止", "Stop") }
+    var focusing: String { pick("专注中", "Focusing") }
+    var timesUp: String { pick("时间到", "Time's up") }
+    func focusEnded(_ title: String) -> String { pick("“\(title)”的专注时间结束了。", "Your focus time for \"\(title)\" is over.") }
+    func startFocus(_ title: String) -> String { pick("开始专注：\(title)", "Start focus timer for \(title)") }
+    func stopFocus(_ title: String) -> String { pick("停止专注：\(title)", "Stop focus timer for \(title)") }
+
+    // MARK: What's new
+
+    var whatsNewTitle: String { pick("新功能", "What's new") }
+    var whatsNewSubtitle: String { pick("这次更新带来了这些变化。", "Here's what changed in this update.") }
+    var whatsNewSettingsRow: String { pick("新功能介绍", "What's new") }
+    var gotIt: String { pick("知道了", "Got it") }
+
+    /// The features announced for `WhatsNew.currentRelease`. Replace this list when you bump the release.
+    var whatsNewItems: [WhatsNewItem] {
+        [
+            WhatsNewItem(
+                icon: "timer",
+                title: pick("灵动岛专注计时", "Focus timer in the Dynamic Island"),
+                body: pick(
+                    "给有时长的待办点“开始”，倒计时会显示在灵动岛和锁屏上。",
+                    "Tap Start on a task with a time and the countdown shows in the Dynamic Island and on the Lock Screen."
+                )
+            ),
+            WhatsNewItem(
+                icon: "flame.fill",
+                title: pick("连续记录", "Streaks"),
+                body: pick(
+                    "每天完成一件事就能延续记录，休息一天也不会断。",
+                    "Finish something each day to keep your streak. One rest day won't break it."
+                )
+            ),
+            WhatsNewItem(
+                icon: "bell.fill",
+                title: pick("每日提醒", "Daily reminder"),
+                body: pick(
+                    "在你选的时间轻轻提醒你挑一件小事。在“设置”里打开。",
+                    "A gentle nudge at a time you choose. Turn it on in Settings."
+                )
+            ),
+            WhatsNewItem(
+                icon: "iphone.radiowaves.left.and.right",
+                title: pick("更有成就感的震动", "A more rewarding buzz"),
+                body: pick(
+                    "完成待办时的震动更丰富，清空当天待办还有额外庆祝。",
+                    "Finishing a task buzzes in step with the coin, and clearing your day gets a bigger celebration."
+                )
+            ),
+            WhatsNewItem(
+                icon: "pawprint.fill",
+                title: pick("小猫不再后退", "The cat keeps its place"),
+                body: pick(
+                    "添加新待办时，小猫会留在原地，不会往回走。",
+                    "Adding a task no longer sends the cat backwards."
+                )
+            ),
+            WhatsNewItem(
+                icon: "keyboard",
+                title: pick("输入更顺手", "Easier typing"),
+                body: pick(
+                    "按回车直接添加，键盘上方也有“添加”按钮，语音输入更稳定。",
+                    "Press Return to add, use the Add button above the keyboard, and enjoy steadier voice input."
+                )
+            ),
+        ]
+    }
+
     // MARK: Settings
 
     var languageTitle: String { pick("语言", "Language") }
@@ -145,6 +263,13 @@ struct Strings {
         case .system: return pick("跟随系统", "Same as iPhone")
         }
     }
+}
+
+struct WhatsNewItem: Identifiable {
+    var id: String { icon }
+    let icon: String
+    let title: String
+    let body: String
 }
 
 private struct StringsKey: EnvironmentKey {

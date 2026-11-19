@@ -10,9 +10,14 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AppLanguage.storageKey) private var languageRaw = AppLanguage.chinese.rawValue
 
+    @AppStorage("reminderEnabled") private var reminderEnabled = false
+    @AppStorage("reminderMinutes") private var reminderMinutes = ReminderService.defaultMinutes
+
     @State private var tab: Tab = .todo
     @State private var showingAdd = false
     @State private var showingSettings = false
+    @State private var showingWhatsNew = false
+    @AppStorage(WhatsNew.storageKey) private var whatsNewSeenRelease = 0
     /// Where the selection highlight sits (in points along the bar) while a finger is dragging it; nil at rest.
     @State private var dragX: CGFloat?
     /// The tab under the finger during a drag, so the selection tick fires once per tab crossed.
@@ -54,6 +59,27 @@ struct RootView: View {
             .environment(\.strings, s)
             .environment(\.locale, s.locale)
         }
+        .sheet(isPresented: $showingWhatsNew, onDismiss: {
+            whatsNewSeenRelease = WhatsNew.currentRelease
+        }) {
+            WhatsNewSheet()
+                .environment(\.strings, s)
+                .environment(\.locale, s.locale)
+        }
+        .task {
+            await FocusTimer.shared.restore()
+            let hasData = ((try? modelContext.fetchCount(FetchDescriptor<Todo>())) ?? 0) > 0
+            switch WhatsNew.launchAction(seenRelease: whatsNewSeenRelease, hasExistingData: hasData) {
+            case .show:
+                // Let the first screen settle before sliding the sheet up.
+                try? await Task.sleep(for: .milliseconds(600))
+                showingWhatsNew = true
+            case .recordSilently:
+                whatsNewSeenRelease = WhatsNew.currentRelease
+            case .nothing:
+                break
+            }
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsSheet(languageRaw: $languageRaw)
                 .environment(\.strings, s)
@@ -61,6 +87,12 @@ struct RootView: View {
         }
         .environment(\.strings, s)
         .environment(\.locale, s.locale)
+        .task(id: languageRaw) {
+            // At launch and whenever the language changes, keep the scheduled wording in step.
+            reminderEnabled = await ReminderService().sync(
+                enabled: reminderEnabled, minutes: reminderMinutes, strings: strings
+            )
+        }
         .onChange(of: scenePhase) { _, _ in
             // A cancelled touch never reports its end; drop any half-finished tab drag.
             dragX = nil

@@ -42,6 +42,13 @@ struct HistoryView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
+            if !done.isEmpty {
+                StreakBanner(info: Streak.compute(completionDates: done.compactMap(\.completedAt), now: Date()))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+            }
+
             if done.isEmpty {
                 ContentUnavailableView(
                     s.noneFinishedTitle,
@@ -114,7 +121,7 @@ struct HistoryView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+        .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 modelContext.delete(todo)
             } label: {

@@ -5,6 +5,8 @@ import SwiftUI
 struct StageView: View {
     let done: Int
     let total: Int
+    /// How far along the road the cat is, 0...1 (see `CatProgress`).
+    let position: Double
     /// Bumped once per completion; every bump plays one hop and one coin.
     let hops: Int
 
@@ -18,9 +20,7 @@ struct StageView: View {
     private static let groundHeight: CGFloat = 26
     private static let sprite: CGFloat = 48
 
-    private var progress: CGFloat {
-        total == 0 ? 0 : CGFloat(done) / CGFloat(total)
-    }
+    private var progress: CGFloat { CGFloat(position) }
 
     /// With Reduce Motion on, the cat stays put (the coin counter, buzz and sound still fire).
     private var hopTrigger: Int { reduceMotion ? 0 : hops }
@@ -28,7 +28,7 @@ struct StageView: View {
     var body: some View {
         GeometryReader { proxy in
             // Room to walk: from the left edge to just before the flag.
-            let travel = max(0, proxy.size.width - Self.sprite - 16 - 64)
+            let travel = max(0, proxy.size.width - Self.sprite - 16 - 80)
             ZStack(alignment: .bottomLeading) {
                 scenery
                 runner

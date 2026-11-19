@@ -12,6 +12,7 @@ struct TodoRow: View {
     @Environment(\.strings) private var s
     @State private var squishes = 0
     @State private var coinPops = 0
+    private var focus: FocusTimer { .shared }
 
     private var isDone: Bool { todo.completedAt != nil }
 
@@ -30,7 +31,12 @@ struct TodoRow: View {
                     .foregroundStyle(isDone ? Theme.muted : Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 if let minutes = todo.durationMinutes {
-                    DurationBadge(minutes: minutes)
+                    HStack(spacing: 8) {
+                        DurationBadge(minutes: minutes)
+                        if !isDone {
+                            focusButton(minutes: minutes)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,6 +65,41 @@ struct TodoRow: View {
             if !isDone { onEdit() }
         }
         .accessibilityAction(named: s.edit) { if !isDone { onEdit() } }
+    }
+
+    /// Starts or stops the countdown for this task (shown in the Dynamic Island too).
+    private func focusButton(minutes: Int) -> some View {
+        let running = focus.isRunning(for: todo.focusKey)
+        return Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            Task {
+                if running {
+                    await focus.stop()
+                } else {
+                    await focus.start(title: todo.title, minutes: minutes, key: todo.focusKey, strings: s)
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: running ? "stop.fill" : "play.fill")
+                    .font(.system(size: 12, weight: .black))
+                if running, let end = focus.endDate {
+                    Text(timerInterval: Date.now...max(end, Date.now), countsDown: true)
+                        .monospacedDigit()
+                } else {
+                    Text(s.focusStart)
+                }
+            }
+            .font(Theme.label)
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 34)
+            .background(running ? Theme.goldLight : Color.white, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.ink, lineWidth: 2))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(running ? s.stopFocus(todo.title) : s.startFocus(todo.title))
     }
 
     private var checkButton: some View {

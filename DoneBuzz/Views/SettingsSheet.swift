@@ -6,13 +6,14 @@ struct SettingsSheet: View {
 
     @Environment(\.strings) private var s
     @Environment(\.dismiss) private var dismiss
+    @State private var showingWhatsNew = false
 
     var body: some View {
         ScrollView {
             content.padding(22)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.height(430), .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 
@@ -41,6 +42,39 @@ struct SettingsSheet: View {
                     .font(Theme.hint)
                     .foregroundStyle(Theme.muted)
             }
+
+            ReminderSection()
+
+            whatsNewRow
+        }
+    }
+
+    private var whatsNewRow: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        return Button {
+            showingWhatsNew = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .bold))
+                Text(s.whatsNewSettingsRow)
+                    .font(Theme.button)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Theme.muted)
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 18)
+            .frame(height: 58)
+            .background(Theme.card, in: shape)
+            .overlay(shape.strokeBorder(Theme.ink, lineWidth: 2))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingWhatsNew) {
+            WhatsNewSheet()
+                .environment(\.strings, s)
         }
     }
 
