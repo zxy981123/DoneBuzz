@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "用于语音输入待办事项。";
+"NSSpeechRecognitionUsageDescription" = "用于把你说的话转换成待办文字。";

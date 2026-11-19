@@ -28,6 +28,51 @@ struct TodoEditorSheet: View {
     }
 
     var body: some View {
+        ScrollView {
+            content
+                .padding(22)
+        }
+        // Dragging the form down puts the keyboard away; the sheet can also be pulled up to full height.
+        .scrollDismissesKeyboard(.interactively)
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents([.height(510), .large])
+        .presentationContentInteraction(.scrolls)
+        .presentationDragIndicator(.visible)
+        .task {
+            // Focusing during the sheet's slide-in can be dropped, so wait for it to settle.
+            try? await Task.sleep(for: .milliseconds(350))
+            titleFocused = true
+        }
+        .onDisappear { speech.stop() }
+        .onChange(of: speech.isRecording) { _, recording in
+            guard recording else { return }
+            // Put the keyboard away while dictating (the chips become visible) and remember what was typed.
+            titleFocused = false
+            let needsSpace = !s.isChinese && !title.isEmpty && !(title.last?.isWhitespace ?? true)
+            titleBeforeDictation = title + (needsSpace ? " " : "")
+        }
+        .onChange(of: speech.transcript) { _, spoken in
+            guard !spoken.isEmpty else { return }
+            title = titleBeforeDictation + spoken
+        }
+        .onChange(of: title) { old, new in
+            guard new.contains("\n") else { return }
+            // Return adds the item instead of starting a new line; pasted line breaks become spaces.
+            let pressedReturn = new.hasSuffix("\n") && String(new.dropLast()) == old
+            title = new.replacingOccurrences(of: "\n", with: " ")
+            if pressedReturn { save() }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(isEditing ? s.save : s.add) { save() }
+                    .font(Theme.button)
+                    .disabled(trimmedTitle.isEmpty)
+            }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text(isEditing ? s.editItem : s.newItem)
                 .font(Theme.sheetTitle)
@@ -40,6 +85,8 @@ struct TodoEditorSheet: View {
                         .tracking(Theme.titleTracking)
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1...3)
+                        .submitLabel(.done)
+                        .onSubmit { save() }
                         .padding(14)
                         .background(Theme.skyLight.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.ink, lineWidth: 2))
@@ -85,19 +132,8 @@ struct TodoEditorSheet: View {
             .disabled(trimmedTitle.isEmpty)
             .opacity(trimmedTitle.isEmpty ? 0.45 : 1)
         }
-        .padding(22)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(510)])
-        .presentationDragIndicator(.visible)
-        .onAppear { titleFocused = true }
-        .onDisappear { speech.stop() }
-        .onChange(of: speech.isRecording) { _, recording in
-            if recording { titleBeforeDictation = title }
-        }
-        .onChange(of: speech.transcript) { _, spoken in
-            guard !spoken.isEmpty else { return }
-            title = titleBeforeDictation + spoken
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { titleFocused = false }
     }
 
     private var micButton: some View {
@@ -140,7 +176,7 @@ struct TodoEditorSheet: View {
     private func save() {
         guard !trimmedTitle.isEmpty else { return }
         speech.stop()
-        onSave(trimmedTitle, minutes)
+        onSave(String(trimmedTitle.prefix(200)), minutes)
         dismiss()
     }
 }

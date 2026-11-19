@@ -10,8 +10,11 @@ struct StageView: View {
 
     @Environment(\.strings) private var s
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private static let height: CGFloat = 156
+    /// Shorter at large text sizes so the list keeps some room.
+    private var stageHeight: CGFloat { dynamicTypeSize >= .xxxLarge ? 110 : 156 }
     private static let groundHeight: CGFloat = 26
     private static let sprite: CGFloat = 48
 
@@ -34,7 +37,7 @@ struct StageView: View {
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.6).delay(0.7), value: progress)
             }
         }
-        .frame(height: Self.height)
+        .frame(height: stageHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(s.stageCaption(done: done, total: total))
     }

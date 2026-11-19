@@ -58,6 +58,7 @@ struct TodoRow: View {
         .onTapGesture {
             if !isDone { onEdit() }
         }
+        .accessibilityAction(named: s.edit) { if !isDone { onEdit() } }
     }
 
     private var checkButton: some View {
@@ -87,7 +88,7 @@ struct TodoRow: View {
             .contentShape(Rectangle().inset(by: -8))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(isDone ? s.markNotDone : s.markDone)
+        .accessibilityLabel("\(isDone ? s.markNotDone : s.markDone): \(todo.title)")
     }
 
     /// A small coin that pops out of the button when the item is completed.

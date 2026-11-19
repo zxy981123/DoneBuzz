@@ -8,6 +8,15 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        ScrollView {
+            content.padding(22)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents([.height(430), .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Text(s.settings)
@@ -20,7 +29,7 @@ struct SettingsSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                Label(s.language, systemImage: "globe")
+                Label(s.languageTitle, systemImage: "globe")
                     .font(Theme.label)
                     .foregroundStyle(Theme.muted)
 
@@ -33,10 +42,6 @@ struct SettingsSheet: View {
                     .foregroundStyle(Theme.muted)
             }
         }
-        .padding(22)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(430)])
-        .presentationDragIndicator(.visible)
     }
 
     private func optionRow(_ option: AppLanguage) -> some View {

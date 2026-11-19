@@ -32,6 +32,12 @@ final class FeedbackService {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [notification] in
             notification.notificationOccurred(.success)
         }
+        // Dictation switches the audio session to recording; make sure the chime can still play.
+        let session = AVAudioSession.sharedInstance()
+        if session.category != .ambient {
+            try? session.setCategory(.ambient)
+        }
+        try? session.setActive(true)
         player?.currentTime = 0
         player?.play()
     }

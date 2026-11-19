@@ -10,6 +10,8 @@ struct HistoryView: View {
         order: .reverse
     )
     private var done: [Todo]
+    /// Bumped at midnight so the "Today / Yesterday" labels move on while the app stays open.
+    @State private var dayTick = 0
 
     /// Finished items grouped by calendar day, newest day first.
     private var days: [(day: Date, items: [Todo])] {
@@ -23,6 +25,16 @@ struct HistoryView: View {
     }
 
     var body: some View {
+        content
+            .id(dayTick)
+            .task {
+                for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
+                    dayTick += 1
+                }
+            }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(s.doneTab)
                 .font(Theme.screenTitle)
@@ -102,7 +114,7 @@ struct HistoryView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
-        .swipeActions(edge: .trailing) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 modelContext.delete(todo)
             } label: {
@@ -123,7 +135,7 @@ struct HistoryView: View {
         let calendar = Calendar.current
         let date = day.formatted(.dateTime.month().day().weekday(.abbreviated).locale(s.locale))
         let today = calendar.startOfDay(for: .now)
-        let daysAgo = calendar.dateComponents([.day], from: day, to: today).day
+        let daysAgo = calendar.dateComponents([.day], from: day, to: today).day ?? -1
         guard let prefix = s.dayPrefix(daysAgo: daysAgo) else { return date }
         return "\(prefix) · \(date)"
     }

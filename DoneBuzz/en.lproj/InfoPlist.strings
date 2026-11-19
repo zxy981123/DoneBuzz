@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "Used to dictate your to-do items by voice.";
+"NSSpeechRecognitionUsageDescription" = "Used to turn what you say into the text of a to-do item.";

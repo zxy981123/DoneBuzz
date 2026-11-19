@@ -69,6 +69,7 @@ struct Strings {
     var markDone: String { pick("标记为完成", "Mark as done") }
     var markNotDone: String { pick("标记为未完成", "Mark as not done") }
     var delete: String { pick("删除", "Delete") }
+    var edit: String { pick("编辑", "Edit") }
     var undoDone: String { pick("撤销完成", "Not done") }
 
     // MARK: History
@@ -133,7 +134,7 @@ struct Strings {
 
     // MARK: Settings
 
-    var language: String { pick("语言", "Language") }
+    var languageTitle: String { pick("语言", "Language") }
     var languageFootnote: String { pick("语音输入也会跟着切换语言。", "Voice input switches language too.") }
     var close: String { pick("完成", "Done") }
 

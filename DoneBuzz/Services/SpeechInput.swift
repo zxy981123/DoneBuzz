@@ -18,14 +18,43 @@ final class SpeechInput: ObservableObject {
     private var locale = Locale(identifier: "zh-CN")
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
     /// Bumped for every recording so a late callback from an old one is ignored.
     private var sessionID = 0
+    /// True from the mic tap until recording begins or fails, so a double tap cannot start two sessions.
+    private var starting = false
+    private var observers: [NSObjectProtocol] = []
+
+    init() {
+        // A phone call, Siri or a route change stops the engine under us; stop cleanly instead of
+        // leaving the sheet stuck on "Listening".
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+                let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                if raw == AVAudioSession.InterruptionType.began.rawValue { self?.stop() }
+            },
+            center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+                self?.stop()
+            },
+        ]
+    }
+
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
+        task?.cancel()
+        if engine.isRunning {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+        }
+    }
 
     /// Starts listening in `locale`, or stops if already listening.
     func toggle(locale: Locale) {
         if isRecording {
             stop()
-        } else {
+        } else if !starting {
+            starting = true
             self.locale = locale
             requestPermissionsAndStart()
         }
@@ -40,21 +69,24 @@ final class SpeechInput: ObservableObject {
         request?.endAudio()
         request = nil
         // Hand the audio session back so the completion chime keeps respecting the silent switch.
+        // Category first: changing it is the step that must not be lost if deactivation is refused.
         let session = AVAudioSession.sharedInstance()
-        try? session.setActive(false, options: .notifyOthersOnDeactivation)
         try? session.setCategory(.ambient)
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func requestPermissionsAndStart() {
         SFSpeechRecognizer.requestAuthorization { status in
             DispatchQueue.main.async {
                 guard status == .authorized else {
+                    self.starting = false
                     self.problem = .speechDenied
                     return
                 }
                 AVAudioApplication.requestRecordPermission { granted in
                     DispatchQueue.main.async {
                         guard granted else {
+                            self.starting = false
                             self.problem = .microphoneDenied
                             return
                         }
@@ -66,6 +98,7 @@ final class SpeechInput: ObservableObject {
     }
 
     private func start() {
+        defer { starting = false }
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             problem = .unavailable
             return
@@ -98,7 +131,7 @@ final class SpeechInput: ObservableObject {
             transcript = ""
             isRecording = true
 
-            recognizer.recognitionTask(with: request) { [weak self] result, error in
+            task = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 DispatchQueue.main.async {
                     guard let self, self.sessionID == id else { return }
                     if let result {

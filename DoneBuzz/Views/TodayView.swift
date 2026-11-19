@@ -72,6 +72,12 @@ struct TodayView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { now = Date() }
         }
+        .task {
+            // Keeps "today" right if the app stays open past midnight.
+            for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
+                now = Date()
+            }
+        }
     }
 
     private var header: some View {
@@ -112,6 +118,17 @@ struct TodayView: View {
     }
 
     private var list: some View {
+        ScrollViewReader { proxy in
+            listContent
+                // A newly added item lands at the top; bring it into view even if the list was scrolled down.
+                .onChange(of: todos.first?.id) { _, newest in
+                    guard let newest else { return }
+                    withAnimation { proxy.scrollTo(newest, anchor: .top) }
+                }
+        }
+    }
+
+    private var listContent: some View {
         List {
             ForEach(todos) { todo in
                 TodoRow(todo: todo, onEdit: { editing = todo }) {
@@ -125,7 +142,7 @@ struct TodayView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 12, trailing: 20))
-                .swipeActions(edge: .trailing) {
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
                         modelContext.delete(todo)
                     } label: {
