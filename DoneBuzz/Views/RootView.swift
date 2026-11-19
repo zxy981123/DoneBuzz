@@ -8,7 +8,7 @@ struct RootView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage(AppLanguage.storageKey) private var languageRaw = AppLanguage.chinese.rawValue
+    @AppStorage(AppLanguage.storageKey) private var languageRaw = AppLanguage.system.rawValue
 
     @AppStorage("reminderEnabled") private var reminderEnabled = false
     @AppStorage("reminderMinutes") private var reminderMinutes = ReminderService.defaultMinutes
@@ -24,7 +24,7 @@ struct RootView: View {
     @State private var hoverIndex: Int?
 
     private var strings: Strings {
-        Strings(language: (AppLanguage(rawValue: languageRaw) ?? .chinese).resolved)
+        Strings(language: (AppLanguage(rawValue: languageRaw) ?? .system).resolved)
     }
 
     var body: some View {
