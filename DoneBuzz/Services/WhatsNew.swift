@@ -6,7 +6,7 @@ import Foundation
 /// `Strings.whatsNewItems`) whenever you ship features worth announcing. The App Store version is left
 /// alone, so bug-fix updates do not pop the sheet.
 enum WhatsNew {
-    static let currentRelease = 2
+    static let currentRelease = 3
     static let storageKey = "whatsNewSeenRelease"
 
     enum LaunchAction: Equatable {

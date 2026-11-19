@@ -200,51 +200,27 @@ struct Strings {
     var whatsNewItems: [WhatsNewItem] {
         [
             WhatsNewItem(
-                icon: "timer",
-                title: pick("灵动岛专注计时", "Focus timer in the Dynamic Island"),
+                icon: "square.grid.2x2.fill",
+                title: pick("主屏幕和锁屏小组件", "Home Screen and Lock Screen widgets"),
                 body: pick(
-                    "给有时长的待办点“开始”，倒计时会显示在灵动岛和锁屏上。",
-                    "Tap Start on a task with a time and the countdown shows in the Dynamic Island and on the Lock Screen."
+                    "把小猫放到主屏幕或锁屏上，随时看到今天的进度和连续记录。",
+                    "Put the cat on your Home Screen or Lock Screen to see today's progress and your streak at a glance."
                 )
             ),
             WhatsNewItem(
-                icon: "flame.fill",
-                title: pick("连续记录", "Streaks"),
+                icon: "cat.fill",
+                title: pick("更可爱的小猫", "A cuter cat"),
                 body: pick(
-                    "每天完成一件事就能延续记录，休息一天也不会断。",
-                    "Finish something each day to keep your streak. One rest day won't break it."
+                    "小猫会轻轻摇尾巴，偶尔眨眨眼。开启“减少动态效果”时它会安静待着。",
+                    "The cat now wags its tail and blinks now and then. With Reduce Motion on, it stays still."
                 )
             ),
             WhatsNewItem(
-                icon: "bell.fill",
-                title: pick("每日提醒", "Daily reminder"),
+                icon: "app.fill",
+                title: pick("全新图标", "New app icon"),
                 body: pick(
-                    "在你选的时间轻轻提醒你挑一件小事。在“设置”里打开。",
-                    "A gentle nudge at a time you choose. Turn it on in Settings."
-                )
-            ),
-            WhatsNewItem(
-                icon: "iphone.radiowaves.left.and.right",
-                title: pick("更有成就感的震动", "A more rewarding buzz"),
-                body: pick(
-                    "完成待办时的震动更丰富，清空当天待办还有额外庆祝。",
-                    "Finishing a task buzzes in step with the coin, and clearing your day gets a bigger celebration."
-                )
-            ),
-            WhatsNewItem(
-                icon: "pawprint.fill",
-                title: pick("小猫不再后退", "The cat keeps its place"),
-                body: pick(
-                    "添加新待办时，小猫会留在原地，不会往回走。",
-                    "Adding a task no longer sends the cat backwards."
-                )
-            ),
-            WhatsNewItem(
-                icon: "keyboard",
-                title: pick("输入更顺手", "Easier typing"),
-                body: pick(
-                    "按回车直接添加，键盘上方也有“添加”按钮，语音输入更稳定。",
-                    "Press Return to add, use the Add button above the keyboard, and enjoy steadier voice input."
+                    "应用图标换成了橙色小猫。",
+                    "The app icon is now the orange cat."
                 )
             ),
         ]
