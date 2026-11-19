@@ -3,15 +3,13 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.strings) private var s
     @Query(
         filter: #Predicate<Todo> { $0.completedAt != nil },
         sort: \Todo.completedAt,
         order: .reverse
     )
     private var done: [Todo]
-
-    /// Dates are always shown in Chinese, whatever the device language.
-    private static let chinese = Locale(identifier: "zh-Hans")
 
     /// Finished items grouped by calendar day, newest day first.
     private var days: [(day: Date, items: [Todo])] {
@@ -25,47 +23,62 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if done.isEmpty {
-                    ContentUnavailableView(
-                        "还没有已完成的事项",
-                        systemImage: "checkmark.seal",
-                        description: Text("完成的事项会保存在这里。")
-                    )
-                } else {
-                    List {
-                        ForEach(days, id: \.day) { group in
-                            Section {
-                                ForEach(group.items) { todo in
-                                    row(for: todo)
-                                }
-                            } header: {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(title(for: group.day))
-                                    Spacer()
-                                    Text(summary(for: group.items))
-                                }
-                                .font(Theme.label)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(s.doneTab)
+                .font(Theme.screenTitle)
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+
+            if done.isEmpty {
+                ContentUnavailableView(
+                    s.noneFinishedTitle,
+                    systemImage: "checkmark.seal",
+                    description: Text(s.noneFinishedHint)
+                )
+                .foregroundStyle(Theme.ink)
+                .frame(maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(days, id: \.day) { group in
+                        Section {
+                            ForEach(group.items) { todo in
+                                row(for: todo)
+                                    .listRowBackground(Theme.card)
                             }
+                        } header: {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(title(for: group.day))
+                                Spacer()
+                                Text(s.daySummary(
+                                    count: group.items.count,
+                                    minutes: group.items.compactMap(\.durationMinutes).reduce(0, +)
+                                ))
+                            }
+                            .font(Theme.label)
+                            .foregroundStyle(Theme.ink)
+                            .textCase(nil)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         }
                     }
-                    .listStyle(.insetGrouped)
-                    .scrollContentBackground(.hidden)
-                    .background(Theme.background)
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("已完成")
         }
     }
 
     private func row(for todo: Todo) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundStyle(Theme.success)
+            ZStack {
+                Circle().fill(Theme.gold)
+                Circle().strokeBorder(Theme.ink, lineWidth: 2.5)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(Theme.ink)
+            }
+            .frame(width: 30, height: 30)
 
             // Title gets the full width; the time details sit together on the line below.
             VStack(alignment: .leading, spacing: 8) {
@@ -73,11 +86,12 @@ struct HistoryView: View {
                     .font(Theme.historyTitle)
                     .tracking(Theme.titleTracking)
                     .lineSpacing(Theme.titleLineSpacing)
+                    .foregroundStyle(Theme.ink)
                 HStack(spacing: 10) {
                     if let completedAt = todo.completedAt {
-                        Text(completedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Self.chinese)))
+                        Text(completedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(s.locale)))
                             .font(Theme.hint)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.muted)
                     }
                     if let minutes = todo.durationMinutes {
                         DurationBadge(minutes: minutes)
@@ -92,35 +106,25 @@ struct HistoryView: View {
             Button(role: .destructive) {
                 modelContext.delete(todo)
             } label: {
-                Label("删除", systemImage: "trash")
+                Label(s.delete, systemImage: "trash")
             }
         }
         .swipeActions(edge: .leading) {
             Button {
                 withAnimation { todo.completedAt = nil }
             } label: {
-                Label("撤销完成", systemImage: "arrow.uturn.backward")
+                Label(s.undoDone, systemImage: "arrow.uturn.backward")
             }
-            .tint(Theme.accent)
+            .tint(Theme.ink)
         }
     }
 
     private func title(for day: Date) -> String {
         let calendar = Calendar.current
-        let date = day.formatted(.dateTime.month().day().weekday(.abbreviated).locale(Self.chinese))
+        let date = day.formatted(.dateTime.month().day().weekday(.abbreviated).locale(s.locale))
         let today = calendar.startOfDay(for: .now)
-        switch calendar.dateComponents([.day], from: day, to: today).day {
-        case 0: return "今天 · \(date)"
-        case 1: return "昨天 · \(date)"
-        case 2: return "前天 · \(date)"
-        default: return date
-        }
-    }
-
-    /// "3 项 · 共 50 分钟" — the time is the sum of the estimates on that day's items.
-    private func summary(for items: [Todo]) -> String {
-        let count = "\(items.count) 项"
-        let minutes = items.compactMap(\.durationMinutes).reduce(0, +)
-        return minutes == 0 ? count : "\(count) · 共 \(DurationOption.label(for: minutes))"
+        let daysAgo = calendar.dateComponents([.day], from: day, to: today).day
+        guard let prefix = s.dayPrefix(daysAgo: daysAgo) else { return date }
+        return "\(prefix) · \(date)"
     }
 }

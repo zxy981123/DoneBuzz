@@ -1,22 +1,32 @@
 import AVFoundation
 import Speech
 
-/// Live dictation for the add/edit sheet: listens on the microphone and publishes the Chinese transcript as it grows.
+/// Live dictation for the add/edit sheet: listens on the microphone and publishes the transcript as it grows,
+/// in whichever language the app is set to.
 final class SpeechInput: ObservableObject {
+    /// Why dictation could not start. The sheet turns this into text in the current language.
+    enum Problem {
+        case speechDenied, microphoneDenied, unavailable, cannotRecord
+    }
+
     @Published private(set) var isRecording = false
     @Published private(set) var transcript = ""
-    @Published private(set) var errorMessage: String?
+    @Published private(set) var problem: Problem?
 
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
+    /// Kept alive for as long as a recognition task is running.
+    private var recognizer: SFSpeechRecognizer?
+    private var locale = Locale(identifier: "zh-CN")
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     /// Bumped for every recording so a late callback from an old one is ignored.
     private var sessionID = 0
 
-    func toggle() {
+    /// Starts listening in `locale`, or stops if already listening.
+    func toggle(locale: Locale) {
         if isRecording {
             stop()
         } else {
+            self.locale = locale
             requestPermissionsAndStart()
         }
     }
@@ -39,13 +49,13 @@ final class SpeechInput: ObservableObject {
         SFSpeechRecognizer.requestAuthorization { status in
             DispatchQueue.main.async {
                 guard status == .authorized else {
-                    self.errorMessage = "请在“设置”中允许语音识别"
+                    self.problem = .speechDenied
                     return
                 }
                 AVAudioApplication.requestRecordPermission { granted in
                     DispatchQueue.main.async {
                         guard granted else {
-                            self.errorMessage = "请在“设置”中允许使用麦克风"
+                            self.problem = .microphoneDenied
                             return
                         }
                         self.start()
@@ -56,10 +66,11 @@ final class SpeechInput: ObservableObject {
     }
 
     private func start() {
-        guard let recognizer, recognizer.isAvailable else {
-            errorMessage = "语音识别暂时不可用"
+        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
+            problem = .unavailable
             return
         }
+        self.recognizer = recognizer
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -83,7 +94,7 @@ final class SpeechInput: ObservableObject {
 
             sessionID += 1
             let id = sessionID
-            errorMessage = nil
+            problem = nil
             transcript = ""
             isRecording = true
 
@@ -101,7 +112,7 @@ final class SpeechInput: ObservableObject {
         } catch {
             engine.inputNode.removeTap(onBus: 0)
             request = nil
-            errorMessage = "无法开始录音"
+            problem = .cannotRecord
             try? AVAudioSession.sharedInstance().setCategory(.ambient)
         }
     }

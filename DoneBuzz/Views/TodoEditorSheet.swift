@@ -7,6 +7,7 @@ struct TodoEditorSheet: View {
     private let onSave: (String, Int?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.strings) private var s
     @State private var title: String
     @State private var minutes: Int?
     @FocusState private var titleFocused: Bool
@@ -28,39 +29,42 @@ struct TodoEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(isEditing ? "编辑待办" : "新建待办")
+            Text(isEditing ? s.editItem : s.newItem)
                 .font(Theme.sheetTitle)
+                .foregroundStyle(Theme.ink)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 10) {
-                    TextField("要做什么？", text: $title, axis: .vertical)
+                    TextField(s.titlePlaceholder, text: $title, axis: .vertical)
                         .font(Theme.itemTitle)
                         .tracking(Theme.titleTracking)
+                        .foregroundStyle(Theme.ink)
                         .lineLimit(1...3)
                         .padding(14)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(Theme.skyLight.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.ink, lineWidth: 2))
                         .focused($titleFocused)
 
                     micButton
                 }
                 if speech.isRecording {
-                    Text("正在聆听… 说完后再点一下麦克风")
+                    Text(s.listening)
                         .font(Theme.hint)
-                        .foregroundStyle(Theme.accent)
-                } else if let message = speech.errorMessage {
-                    Text(message)
+                        .foregroundStyle(Theme.ink)
+                } else if let problem = speech.problem {
+                    Text(s.message(for: problem))
                         .font(Theme.hint)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.recording)
                 }
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("需要多久？（可选）")
+                Text(s.howLong)
                     .font(Theme.label)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.muted)
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                    spacing: 10
+                    spacing: 12
                 ) {
                     ForEach(DurationOption.all, id: \.self) { option in
                         chip(for: option)
@@ -69,19 +73,21 @@ struct TodoEditorSheet: View {
             }
 
             Button(action: save) {
-                Text(isEditing ? "保存" : "添加")
+                Text(isEditing ? s.save : s.add)
                     .font(Theme.button)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.ink)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
-                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Theme.gold, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .gameOutline(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
+            .buttonStyle(.plain)
             .disabled(trimmedTitle.isEmpty)
             .opacity(trimmedTitle.isEmpty ? 0.45 : 1)
         }
         .padding(22)
         .frame(maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(500)])
+        .presentationDetents([.height(510)])
         .presentationDragIndicator(.visible)
         .onAppear { titleFocused = true }
         .onDisappear { speech.stop() }
@@ -97,16 +103,17 @@ struct TodoEditorSheet: View {
     private var micButton: some View {
         Button {
             UISelectionFeedbackGenerator().selectionChanged()
-            speech.toggle()
+            speech.toggle(locale: s.speechLocale)
         } label: {
             Image(systemName: speech.isRecording ? "stop.fill" : "mic.fill")
                 .font(.title3.weight(.bold))
-                .foregroundStyle(speech.isRecording ? .white : Theme.accent)
+                .foregroundStyle(speech.isRecording ? .white : Theme.ink)
                 .frame(width: 54, height: 54)
-                .background(speech.isRecording ? Color.red : Theme.accent.opacity(0.14), in: Circle())
+                .background(speech.isRecording ? Theme.recording : Color.white, in: Circle())
+                .overlay(Circle().strokeBorder(Theme.ink, lineWidth: 2))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(speech.isRecording ? "停止语音输入" : "语音输入")
+        .accessibilityLabel(speech.isRecording ? s.stopVoiceInput : s.voiceInput)
     }
 
     private func chip(for option: Int) -> some View {
@@ -116,16 +123,18 @@ struct TodoEditorSheet: View {
             // Tapping the selected chip again clears it.
             minutes = selected ? nil : option
         } label: {
-            Text(DurationOption.chipLabel(for: option))
+            Text(s.chipDuration(option))
                 .font(Theme.label)
-                .foregroundStyle(selected ? .white : Theme.accent)
+                .foregroundStyle(selected ? Theme.ink : Theme.tagText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(selected ? Theme.accent : Theme.accent.opacity(0.14), in: Capsule())
+                .background(selected ? Theme.gold : Theme.tagBackground, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.ink, lineWidth: selected ? 3 : 2))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func save() {
