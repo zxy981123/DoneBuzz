@@ -41,30 +41,67 @@ struct PixelSprite: View {
 }
 
 extension PixelSprite {
-    /// The hero: a little orange cat in a blue scarf.
-    static let cat: PixelSprite = {
-        let fur = Color(hex: 0xF08A24)
-        let stripe = Color(hex: 0xC9661A)
-        let innerEar = Color(hex: 0xFFC9A3)
-        let cream = Color(hex: 0xFFF1DE)
-        let nose = Color(hex: 0xE5577A)
-        let scarf = Color(hex: 0x3D7BFF)
-        let eye = Theme.ink
-        return PixelSprite(columns: 12, rows: 12, blocks: [
-            Block(2, 1, 2, 2, fur), Block(8, 1, 2, 2, fur),
-            Block(3, 2, 1, 1, innerEar), Block(8, 2, 1, 1, innerEar),
-            Block(2, 3, 8, 5, fur), Block(1, 4, 10, 3, fur),
-            Block(5, 3, 2, 1, stripe),
-            Block(3, 5, 1, 2, eye), Block(8, 5, 1, 2, eye),
-            Block(5, 6, 2, 1, nose),
-            Block(4, 7, 4, 1, cream),
-            Block(10, 8, 1, 1, fur),
-            Block(2, 8, 8, 1, scarf),
-            Block(3, 9, 6, 2, fur), Block(5, 9, 2, 2, cream),
-            Block(9, 9, 2, 1, fur),
-            Block(3, 11, 2, 1, stripe), Block(7, 11, 2, 1, stripe),
-        ])
+    /// Builds a sprite from rows of characters, one cell per character; unknown characters are see-through.
+    init(art: [String], palette: [Character: Color]) {
+        var blocks: [Block] = []
+        for (y, row) in art.enumerated() {
+            for (x, char) in row.enumerated() {
+                if let color = palette[char] { blocks.append(Block(x, y, 1, 1, color)) }
+            }
+        }
+        self.init(columns: art.map(\.count).max() ?? 0, rows: art.count, blocks: blocks)
+    }
+
+    /// Where the cat's tail is pointing; cycling left, middle, right, middle makes it wag.
+    enum Tail: CaseIterable { case left, middle, right }
+
+    /// The hero: a little orange cat in a blue scarf, with big sparkly eyes and pink cheeks.
+    static func cat(tail: Tail = .middle, blinking: Bool = false) -> PixelSprite {
+        var art = [
+            ".............",
+            ".O......O....",
+            ".OO....OO....",
+            ".OPOSSOPO....",
+            "OOOOSSOOOO...",
+            "OOOOOOOOOO...",
+            "OKWOOOOKWO...",
+            "OKKONNOKKO...",
+            "ORROCCORRO...",
+            ".OOOOOOOO....",
+            "..BBBBBB.....",
+            "..OCCCCO.....",
+            "..SS..SS.....",
+        ].map { Array($0) }
+        if blinking {
+            art[6] = Array("OOOOOOOOOO...")
+        }
+        // Tail cells, from the base at the cat's hip out to the darker tip.
+        let cells: [(Int, Int)] = switch tail {
+        case .left: [(8, 11), (9, 11), (10, 10), (10, 9), (11, 8), (11, 7)]
+        case .middle: [(8, 11), (9, 11), (10, 10), (11, 9), (11, 8), (12, 7)]
+        case .right: [(8, 11), (9, 11), (10, 11), (11, 10), (12, 9), (12, 8)]
+        }
+        for (index, (x, y)) in cells.enumerated() {
+            art[y][x] = index == cells.count - 1 ? "S" : "O"
+        }
+        return PixelSprite(art: art.map { String($0) }, palette: catPalette)
+    }
+
+    private static let catPalette: [Character: Color] = {
+        var palette: [Character: Color] = [:]
+        palette["O"] = Color(hex: 0xF08A24) // fur
+        palette["S"] = Color(hex: 0xC9661A) // stripes, paws and tail tip
+        palette["P"] = Color(hex: 0xFFB3C1) // inner ears
+        palette["C"] = Color(hex: 0xFFF1DE) // muzzle and belly
+        palette["N"] = Color(hex: 0xE5577A) // nose
+        palette["R"] = Color(hex: 0xFF9FB0) // cheeks
+        palette["B"] = Color(hex: 0x3D7BFF) // scarf
+        palette["K"] = Theme.ink // eyes
+        palette["W"] = Color.white // eye sparkle
+        return palette
     }()
+
+    static let cat = cat()
 
     static let coin: PixelSprite = {
         let rim = Color(hex: 0xA66F00)

@@ -139,7 +139,7 @@ struct StageView: View {
                     }
                 }
 
-            PixelSprite.cat
+            WaggingCat(animated: !reduceMotion)
                 .frame(width: Self.sprite, height: Self.sprite)
                 .keyframeAnimator(initialValue: Hop(), trigger: hopTrigger) { content, hop in
                     content
@@ -184,5 +184,32 @@ struct StageView: View {
         var scaleX: CGFloat = 1
         var scaleY: CGFloat = 1
         var tilt: Double = 0
+    }
+}
+
+/// The cat, idly wagging its tail in little bursts and blinking now and then.
+struct WaggingCat: View {
+    var animated = true
+
+    /// One pixel-art frame per tick.
+    static let tick: TimeInterval = 0.15
+
+    /// The pose for a given tick: two quick wags, a rest, and an occasional blink.
+    static func pose(at tick: Int) -> (tail: PixelSprite.Tail, blinking: Bool) {
+        let wag: [PixelSprite.Tail] = [.left, .middle, .right, .middle, .left, .middle, .right, .middle]
+        let step = tick % 20
+        let tail = step < wag.count ? wag[step] : .middle
+        return (tail, tick % 31 == 14)
+    }
+
+    var body: some View {
+        if animated {
+            TimelineView(.periodic(from: .now, by: Self.tick)) { context in
+                let pose = Self.pose(at: Int(context.date.timeIntervalSinceReferenceDate / Self.tick))
+                PixelSprite.cat(tail: pose.tail, blinking: pose.blinking)
+            }
+        } else {
+            PixelSprite.cat
+        }
     }
 }
