@@ -208,14 +208,6 @@ struct Strings {
                 )
             ),
             WhatsNewItem(
-                icon: "cat.fill",
-                title: pick("更可爱的小猫", "A cuter cat"),
-                body: pick(
-                    "小猫会轻轻摇尾巴，偶尔眨眨眼。开启“减少动态效果”时它会安静待着。",
-                    "The cat now wags its tail and blinks now and then. With Reduce Motion on, it stays still."
-                )
-            ),
-            WhatsNewItem(
                 icon: "app.fill",
                 title: pick("全新图标", "New app icon"),
                 body: pick(
