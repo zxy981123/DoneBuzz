@@ -1,19 +1,19 @@
 ---
-title: DoneBuzz Privacy Policy
+title: Cat To-Do List Privacy Policy
 permalink: /privacy
 ---
 
-# DoneBuzz Privacy Policy
+# Cat To-Do List Privacy Policy
 
 Last updated: 21 November 2026
 
-DoneBuzz does not collect, store on any server, share or sell any personal data. All tasks and settings you create are stored locally on your device only. The app does not require an account, and it does not use analytics, advertising or third-party tracking.
+Cat To-Do List does not collect, store on any server, share or sell any personal data. All tasks and settings you create are stored locally on your device only. The app does not require an account, and it does not use analytics, advertising or third-party tracking.
 
 If you have any questions, contact: [zhuoxinyun1123@gmail.com](mailto:zhuoxinyun1123@gmail.com)
 
 ---
 
-# 小猫清单 / DoneBuzz 隐私政策
+# 小猫清单 / Cat To-Do List 隐私政策
 
 最后更新：2026 年 11 月 21 日
 
